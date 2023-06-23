@@ -192,7 +192,12 @@ void aes_main(unsigned char* expandedKey,int numberOfRounds,unsigned char *state
                 state[k * 4 + 3] = tmp;
             }
         }
-        
+
+	for (j = 0; j < 16; j++) 
+        {
+            state[j] = roundKey[j] ^ state[j];
+        }
+	    
         // bütün bu işlemlerden sonra bir kere daha round edilecek...
         
         
