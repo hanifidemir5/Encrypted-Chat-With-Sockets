@@ -3,7 +3,7 @@
 
 
 void ShiftRow(unsigned char* state);
-void expandKey(unsigned char* expandedKey, unsigned char* key, int size, int expandedKeySize);
+void expandKey(unsigned char* expandedKey, unsigned char* key, int size, size_t expandedKeySize);
 void core(unsigned char* word,int number);
 
 
@@ -150,14 +150,55 @@ int main() {
     expandKey(expandedKey, key, size, expandedKeySize);
 
     printf("\nexpandedKey :\n");
-
+    
     for (i = 0; i < expandedKeySize; i++)
     {
         printf("%2.2x%c", expandedKey[i], ((i + 1) % 16) ? ' ' : '\n');
     }
     
+    aes_main(expandedKey,numberOfRounds,tempText);    
 
+}
+
+void aes_main(unsigned char* expandedKey,int numberOfRounds,unsigned char *state)
+{
+    unsigned char roundKey[16];
+    unsigned char tmp;
+    int i,j,k,l;
+    printf("\n");
+    for (i = 0; i < numberOfRounds; i++) 
+    {
+        for (j = 0; j < 16; j++) 
+        {
+            roundKey[j] = expandedKey[(16 * i) + j];
+        }
+        
+        // s-box
+            
+        for (j = 0; j < 16; j++) 
+        {
+            state[j] = sbox[state[j]];
+        }
+        
+        //rotate 
+        
+        for (k = 1; k < 4; k++) 
+        {
+            for (l = 0; l < k; l++)
+            {
+                tmp = state[k * 4];
+                for (j = k * 4; j < (k * 4) + 3; j++)
+                    state[j] = state[j + 1];
+                state[k * 4 + 3] = tmp;
+            }
+        }
+        
+        // bütün bu işlemlerden sonra bir kere daha round edilecek...
+        
+        
     }
+    
+}
 
 void expandKey(unsigned char* expandedKey, unsigned char* key, int size,size_t expandedKeySize) {
 	int currentSize = 0;
