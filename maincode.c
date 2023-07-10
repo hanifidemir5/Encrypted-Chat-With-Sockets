@@ -1,5 +1,6 @@
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 
 void ShiftRow(unsigned char* state);
@@ -16,8 +17,16 @@ void invMixColumn(unsigned char* column);
 unsigned char galois_multiplication(unsigned char a, unsigned char b);
 
 
-
-
+int input(char str[], int n) {
+    int ch, i = 0;
+    while ((ch = getchar()) != '\n')
+    {
+        if (i < n)
+            str[i++] = ch;
+    }
+    str[i] = '\0';
+    return i;
+}
 
 unsigned char sbox[256] = {
     // 0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
@@ -310,7 +319,7 @@ void aes_invMain(unsigned char* expandedKey, int numberOfRounds, unsigned char* 
         // Mix Columns
 
         invMixColumns(state);
-        
+
     }
 
     //!!FINAL ROUND
@@ -320,7 +329,7 @@ void aes_invMain(unsigned char* expandedKey, int numberOfRounds, unsigned char* 
     for (i = 0; i < 4; i++)
     {
         for (j = 0; j < 4; j++) {
-            roundKey[i + (j * 4)] = expandedKey[ (i * 4) + j];
+            roundKey[i + (j * 4)] = expandedKey[(i * 4) + j];
         }
     }
 
@@ -524,23 +533,52 @@ void invShiftRow(unsigned char* state)
 }
 
 int main() {
-    int i, j;
+    int i, j, n;
     int size = 16;
     unsigned char* expandedKey;
     int expandedKeySize = 176;
     expandedKey = (unsigned char*)malloc(176 * sizeof(unsigned char));
-    unsigned char key[16] = { 'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.' };
-    unsigned char message[16] = { 'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'};
+    unsigned char key[17];
+    unsigned char message[16] = { 'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
     unsigned char encryptedtext[16];
     unsigned char decryptedtext[16];
+    unsigned char padded[16];
+    char arr[100];
 
+    // Taking the 16 bytes of key from user
 
+    while (1) {
+        printf("Please enter your key(keys max lentgh must be 16): \n");
+        n = input(arr, 100);
 
-    for (i = 0; i < 4; i++)
-    {
-        for (j = 0; j < 4; j++)
-            encryptedtext[(i + (j * 4))] = encryptedtext[i + (j * 4)];
+        if (n > 16)
+        {
+            printf("\nKey length must be less than 16!!\n");
+            continue;
+        }
+        else if (n == 0) {
+            printf("\nYou must enter at least one character!!\n");
+            continue;
+        }
+        else if(n == 16){
+            break;
+        }
+        else {
+            arr[16] = '\0';
+            for (i = n; i < 16; i++) {
+                arr[i] = '9';
+            }
+            break;
+        }
+
     }
+
+    for (i = 0; i < 16; i++) 
+    {
+        key[i] = arr[i];
+    }
+
+    key[16] = '\0';
 
 
     expandKey(expandedKey, key, size, expandedKeySize);
