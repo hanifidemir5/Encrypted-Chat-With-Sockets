@@ -1,12 +1,32 @@
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 
 void ShiftRow(unsigned char* state);
 void expandKey(unsigned char* expandedKey, unsigned char* key, int size, size_t expandedKeySize);
-void core(unsigned char* word,int number);
+void core(unsigned char* word, int number);
+void aes_encrypt(unsigned char* input, unsigned char* output, unsigned char* expandedKey, int size, int expandedKeySize);
+void aes_main(unsigned char* expandedKey, int numberOfRounds, unsigned char* state);
+void aes_decrypt(unsigned char* input, unsigned char* output, unsigned char* expandedKey, int size, int expandedKeySize);
+void aes_invMain(unsigned char* expandedKey, int numberOfRounds, unsigned char* state);
+void mixColumns(unsigned char* state);
+void mixColumn(unsigned char* column);
+void invMixColumns(unsigned char* state);
+void invMixColumn(unsigned char* column);
+unsigned char galois_multiplication(unsigned char a, unsigned char b);
 
 
+int input(char str[], int n) {
+    int ch, i = 0;
+    while ((ch = getchar()) != '\n')
+    {
+        if (i < n)
+            str[i++] = ch;
+    }
+    str[i] = '\0';
+    return i;
+}
 
 unsigned char sbox[256] = {
     // 0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
@@ -42,7 +62,7 @@ unsigned char rsbox[256] = {
     0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4,
     0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f,
     0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
-    0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61, 
+    0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
     0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d };
 
 unsigned char Rcon[255] = {
@@ -54,106 +74,425 @@ unsigned char Rcon[255] = {
     0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc,
     0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b,
     0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3,
-    0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 
+    0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94,
     0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20,
     0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35,
     0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f,
-    0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01, 0x02, 0x04, 
+    0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01, 0x02, 0x04,
     0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63,
     0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd,
     0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb };
 
-
-
-int main() {
+void mixColumns(unsigned char* state)
+{
     int i, j;
-    int size = 16;
-    int expandedKeySize = 176;
-    unsigned char expandedKey[176];
-    unsigned char key[16] = { 'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.' };
-    unsigned char dummyText[] = "HelloWorld!brots";
-    unsigned char tempText[17];
-    tempText[16] = '\0';
+    unsigned char column[4];
 
+    // iterate over the 4 columns
+    for (i = 0; i < 4; i++)
+    {
+        // construct one column by iterating over the 4 rows
+        for (j = 0; j < 4; j++)
+        {
+            column[j] = state[(j * 4) + i];
+        }
+
+        // apply the mixColumn on one column
+        mixColumn(column);
+
+        // put the values back into the state
+        for (j = 0; j < 4; j++)
+        {
+            state[(j * 4) + i] = column[j];
+        }
+    }
+}
+
+void invMixColumns(unsigned char* state)
+{
+    int i, j;
+    unsigned char column[4];
+
+    // iterate over the 4 columns
+    for (i = 0; i < 4; i++)
+    {
+        // construct one column by iterating over the 4 rows
+        for (j = 0; j < 4; j++)
+        {
+            column[j] = state[(j * 4) + i];
+        }
+
+        // apply the invMixColumn on one column
+        invMixColumn(column);
+
+        // put the values back into the state
+        for (j = 0; j < 4; j++)
+        {
+            state[(j * 4) + i] = column[j];
+        }
+    }
+}
+
+void mixColumn(unsigned char* column)
+{
+    unsigned char cpy[4];
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+        cpy[i] = column[i];
+    }
+    column[0] = galois_multiplication(cpy[0], 2) ^
+        galois_multiplication(cpy[3], 1) ^
+        galois_multiplication(cpy[2], 1) ^
+        galois_multiplication(cpy[1], 3);
+
+    column[1] = galois_multiplication(cpy[1], 2) ^
+        galois_multiplication(cpy[0], 1) ^
+        galois_multiplication(cpy[3], 1) ^
+        galois_multiplication(cpy[2], 3);
+
+    column[2] = galois_multiplication(cpy[2], 2) ^
+        galois_multiplication(cpy[1], 1) ^
+        galois_multiplication(cpy[0], 1) ^
+        galois_multiplication(cpy[3], 3);
+
+    column[3] = galois_multiplication(cpy[3], 2) ^
+        galois_multiplication(cpy[2], 1) ^
+        galois_multiplication(cpy[1], 1) ^
+        galois_multiplication(cpy[0], 3);
+}
+
+void invMixColumn(unsigned char* column)
+{
+    unsigned char cpy[4];
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+        cpy[i] = column[i];
+    }
+    column[0] = galois_multiplication(cpy[0], 14) ^
+        galois_multiplication(cpy[3], 9) ^
+        galois_multiplication(cpy[2], 13) ^
+        galois_multiplication(cpy[1], 11);
+    column[1] = galois_multiplication(cpy[1], 14) ^
+        galois_multiplication(cpy[0], 9) ^
+        galois_multiplication(cpy[3], 13) ^
+        galois_multiplication(cpy[2], 11);
+    column[2] = galois_multiplication(cpy[2], 14) ^
+        galois_multiplication(cpy[1], 9) ^
+        galois_multiplication(cpy[0], 13) ^
+        galois_multiplication(cpy[3], 11);
+    column[3] = galois_multiplication(cpy[3], 14) ^
+        galois_multiplication(cpy[2], 9) ^
+        galois_multiplication(cpy[1], 13) ^
+        galois_multiplication(cpy[0], 11);
+}
+
+unsigned char galois_multiplication(unsigned char a, unsigned char b)
+{
+    unsigned char p = 0;
+    unsigned char counter;
+    unsigned char hi_bit_set;
+    for (counter = 0; counter < 8; counter++)
+    {
+        if ((b & 1) == 1)
+            p ^= a;
+        hi_bit_set = (a & 0x80);
+        a <<= 1;
+        if (hi_bit_set == 0x80)
+            a ^= 0x1b;
+        b >>= 1;
+    }
+    return p;
+}
+
+void aes_encrypt(unsigned char* input, unsigned char* output, unsigned char* expandedKey, int size, int expandedKeySize) {
+
+    int numberOfRounds, i, j;
+    unsigned char block[16];
+    numberOfRounds = 10;
+
+    for (i = 0; i < 4; i++)
+    {
+        // iterate over the rows
+        for (j = 0; j < 4; j++)
+            block[(i + (j * 4))] = input[(i * 4) + j];
+    }
+
+
+    aes_main(expandedKey, numberOfRounds, block);
+
+    for (i = 0; i < 4; i++)
+    {
+        // iterate over the rows
+        for (j = 0; j < 4; j++)
+            output[(i * 4) + j] = block[(i + (j * 4))];
+    }
+
+    // de-allocate memory for expandedKey
+    free(expandedKey);
+    expandedKey = NULL;
+
+
+}
+
+void aes_decrypt(unsigned char* input, unsigned char* output, unsigned char* expandedKey, int size, int expandedKeySize)
+{
+    int numberOfRounds, i, j;
+    unsigned char block[16];
+    numberOfRounds = 10;
+
+    for (i = 0; i < 4; i++)
+    {
+        // iterate over the rows
+        for (j = 0; j < 4; j++)
+            block[(i + (j * 4))] = input[(i * 4) + j];
+    }
+
+
+    aes_invMain(expandedKey, numberOfRounds, block);
+
+    for (i = 0; i < 4; i++)
+    {
+        // iterate over the rows
+        for (j = 0; j < 4; j++)
+            output[(i * 4) + j] = block[(i + (j * 4))];
+    }
+
+    // de-allocate memory for expandedKey
+
+}
+
+void aes_invMain(unsigned char* expandedKey, int numberOfRounds, unsigned char* state) {
+
+    int i, j, k, l, b;
+    unsigned char tmp;
+    unsigned char roundKey[16];
+    int expandedKeySize = 176 - 1;
 
     for (i = 0; i < 4; i++)
     {
         for (j = 0; j < 4; j++)
-            tempText[(i + (j * 4))] = dummyText[i + (j * 4)];
+        {
+            roundKey[15 - (i + (j * 4))] = expandedKey[expandedKeySize - (j + (i * 4))];
+        }
     }
-
-    printf("\nCipher Key (HEX format):\n");
 
     for (i = 0; i < 16; i++)
     {
-        // Print characters in HEX format, 16 chars per line
-        printf("%2.2x%c", key[i], ((i + 1) % 16) ? ' ' : '\n');
+        state[i] = roundKey[i] ^ state[i];
     }
 
-    expandKey(expandedKey, key, size, expandedKeySize);
-
-    printf("\nexpandedKey :\n");
-
-    for (i = 0; i < expandedKeySize; i++)
+    for (i = numberOfRounds - 1; i > 0; i--)
     {
-        printf("%2.2x%c", expandedKey[i], ((i + 1) % 16) ? ' ' : '\n');
+        // Assignment of roundKey
+        for (j = 0; j < 4; j++)
+        {
+            for (k = 0; k < 4; k++)
+            {
+                roundKey[(k + (j * 4))] = expandedKey[(16 * i) + (k * 4) + j];
+            }
+        }
+
+        // Shift
+        for (j = 1; j < 4; j++)
+        {
+            for (k = 0; k < j; k++)
+            {
+                tmp = state[j * 4 + 3];
+                for (l = (j * 4) + 3; l > j * 4; l--)
+                    state[l] = state[l - 1];
+                state[j * 4] = tmp;
+            }
+        }
+
+        // Subs S-Box
+        for (j = 0; j < 16; j++)
+            state[j] = rsbox[state[j]];
+
+        //Addition of the Round key
+        for (j = 0; j < 16; j++)
+        {
+            state[j] = roundKey[j] ^ state[j];
+        }
+
+        // Mix Columns
+
+        invMixColumns(state);
+        
     }
+
+    //!!FINAL ROUND
+
+   //assign round key
+
+    for (i = 0; i < 4; i++)
+    {
+        for (j = 0; j < 4; j++) {
+            roundKey[i + (j * 4)] = expandedKey[ (i * 4) + j];
+        }
+    }
+
+    // Shift
+
+    for (j = 1; j < 4; j++)
+    {
+        for (k = 0; k < j; k++)
+        {
+            tmp = state[j * 4 + 3];
+            for (l = (j * 4) + 3; l > j * 4; l--)
+                state[l] = state[l - 1];
+            state[j * 4] = tmp;
+        }
+    }
+
+    // Subs SBox
+
+    for (j = 0; j < 16; j++)
+    {
+        state[j] = rsbox[state[j]];
+    }
+
+    //Addition of the Round key
+    for (j = 0; j < 16; j++)
+    {
+        state[j] = roundKey[j] ^ state[j];
+    }
+
 
 }
 
 void aes_main(unsigned char* expandedKey, int numberOfRounds, unsigned char* state) {
-    int i,j,k,l,b;
+    int i, j, k, l, b;
     unsigned char tmp;
     unsigned char roundKey[16];
-    for (i = 0; i < numberOfRounds; i++) 
+
+    for (i = 0; i < 4; i++)
+    {
+        for (j = 0; j < 4; j++)
+        {
+            roundKey[i + (j * 4)] = expandedKey[j + (i * 4)];
+        }
+
+    }
+
+
+    for (i = 0; i < 16; i++)
+    {
+        state[i] = roundKey[i] ^ state[i];
+    }
+
+
+    for (i = 1; i < numberOfRounds; i++)
     {
         // Assignment of roundKey
-        for (j = 0; j < 16; j++) 
+        for (j = 0; j < 4; j++)
         {
-            roundKey[j] = expandedKey[(16 * i) + j];
+            for (k = 0; k < 4; k++)
+            {
+                roundKey[(j + (k * 4))] = expandedKey[(16 * i) + (j * 4) + k];
+            }
         }
+
         // Subs S-Box
-        for (j = 0; j < 16; j++) 
+        for (j = 0; j < 16; j++)
         {
             state[j] = sbox[state[j]];
         }
+
         // Shift
-        for (k = 1; k < 4; k++) 
+        for (j = 1; j < 4; j++)
         {
-            for (l = 0; l < k; l++)
+            for (k = 0; k < j; k++)
             {
-                tmp = state[k * 4];
-                for (j = k * 4; j < (k * 4) + 3; j++)
-                    state[j] = state[j + 1];
-                state[k * 4 + 3] = tmp;
+                tmp = state[j * 4];
+                for (l = j * 4; l < (j * 4) + 3; l++)
+                    state[l] = state[l + 1];
+                state[j * 4 + 3] = tmp;
             }
         }
-            
-        // Mix Columns
-        for (j = 0; j < 16; j++) 
-        {
 
-        }
-        for (j = 0; j < 16; j++) 
+        // Mix Columns
+
+        mixColumns(state);
+
+        //Addition of the Round key
+        for (j = 0; j < 16; j++)
         {
             state[j] = roundKey[j] ^ state[j];
         }
+
+    }
+
+    //!!FINAL ROUND
+
+    //assign round key
+
+    for (i = 0; i < 4; i++)
+    {
+        for (j = 0; j < 4; j++) {
+            roundKey[i + (j * 4)] = expandedKey[(16 * numberOfRounds) + (i * 4) + j];
+        }
+    }
+
+
+    // Subs SBox
+
+    for (j = 0; j < 16; j++)
+    {
+        state[j] = sbox[state[j]];
+    }
+
+    // Shift
+
+    for (j = 1; j < 4; j++)
+    {
+        for (k = 0; k < j; k++)
+        {
+            tmp = state[j * 4];
+            for (l = j * 4; l < (j * 4) + 3; l++)
+                state[l] = state[l + 1];
+            state[j * 4 + 3] = tmp;
+        }
+    }
+
+    //Addition of the Round key
+    for (j = 0; j < 16; j++)
+    {
+        state[j] = roundKey[j] ^ state[j];
+    }
+
+}
+
+void expandKey(unsigned char* expandedKey, unsigned char* key, int size, size_t expandedKeySize) {
+    int currentSize = 0;
+    unsigned char t[4];
+    int rconIteration = 1;
+
+
+    for (int i = 0; i < 16; i++)
+        expandedKey[i] = key[i];
+    currentSize += size;
+
+    while (currentSize < expandedKeySize)
+    {
+        int i;
+        for (i = 0; i < 4; i++) {
+            t[i] = expandedKey[(currentSize - 4) + i];
+        }
+
+
+        if (currentSize % 16 == 0) {
+            core(t, rconIteration++);
+        }
+
+        for (int i = 0; i < 4; i++) {
+            expandedKey[currentSize] = expandedKey[currentSize - size] ^ t[i];
+            currentSize++;
+        }
+
     }
 }
-
-void aes_encrypt(unsigned char* input, unsigned char* output, unsigned char* expandedKey,int size,int expandedKeySize) {
-
-    int numberOfRounds;
-    unsigned char block[16];
-
-    if (size == 16) numberOfRounds = 10;
-    else if (size == 24) numberOfRounds = 12;
-    else if (size == 32) numberOfRounds = 14;
-
-    aes_main(expandedKey,numberOfRounds,block);
-
-}
-
 
 void core(unsigned char* word, int number) {
     int i;
@@ -176,10 +515,9 @@ void core(unsigned char* word, int number) {
 
 }
 
-
 void invShiftRow(unsigned char* state)
 {
-    int i, j,k;
+    int i, j, k;
     unsigned char tmp;
     // each iteration shifts the row to the right by 1
     for (k = 1; k < 4; k++) {
@@ -194,33 +532,59 @@ void invShiftRow(unsigned char* state)
 
 }
 
+int main() {
+    int i, j,n;
+    int size = 16;
+    unsigned char* expandedKey;
+    int expandedKeySize = 176;
+    expandedKey = (unsigned char*)malloc(176 * sizeof(unsigned char));
+    unsigned char key[16] = { 'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.' };
+    unsigned char message[16] = { 'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
+    unsigned char encryptedtext[16];
+    unsigned char decryptedtext[16];
+    char arr[100];
 
-void expandKey(unsigned char* expandedKey, unsigned char* key, int size,size_t expandedKeySize) {
-	int currentSize = 0;
-	unsigned char t[4];
-    int rconIteration = 1;
+    while (1) {
+        printf("Please enter your key(keys max lentgh must be 16): \n");
+        n = input(arr, 100);
+
+        if (n > 16)
+        {
+            printf("\nKey length must be less than 16!!\n");
+            continue;
+        }
+        else if (n == 0) {
+            printf("\nYou must enter at least one character!!\n");
+            continue;
+        }
+        else{
+            break;
+        }
+     
+    }
+    
 
 
-	for (int i = 0; i < 16; i++)
-		expandedKey[i] = key[i];
-    currentSize += size;
+    expandKey(expandedKey, key, size, expandedKeySize);
 
-	while (currentSize < expandedKeySize) 
+    printf("\nexpandedKey :\n");
+
+    for (i = 0; i < expandedKeySize; i++)
     {
-        int i;
-        for (i = 0; i < 4; i++) {
-            t[i] = expandedKey[(currentSize-4) + i];
-        }
+        printf("%2.2x%c", expandedKey[i], ((i + 1) % 16) ? ' ' : '\n');
+    }
 
+    aes_encrypt(message, encryptedtext, expandedKey, 16, 176);
 
-        if (currentSize % 16 == 0) {
-            core(t,rconIteration++);
-        }
+    expandKey(expandedKey, key, size, expandedKeySize);
 
-        for (int i = 0; i < 4; i++) {
-            expandedKey[currentSize] = expandedKey[currentSize - size] ^ t[i];
-            currentSize++;
-        }
+    aes_decrypt(encryptedtext, decryptedtext, expandedKey, 16, 176);
 
-	}
+    printf("\nDecrypted text (HEX format):\n");
+
+    for (i = 0; i < sizeof(decryptedtext); i++)
+    {
+        printf("%c", decryptedtext[i]);
+    }
+
 }
