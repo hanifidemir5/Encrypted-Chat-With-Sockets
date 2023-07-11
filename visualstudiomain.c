@@ -3,6 +3,9 @@
 #include <string.h>
 
 
+#define BUFFER_SİZE 1024
+#define AES_BLOCK_SIZE 16
+
 void ShiftRow(unsigned char* state);
 void expandKey(unsigned char* expandedKey, unsigned char* key, int size, size_t expandedKeySize);
 void core(unsigned char* word, int number);
@@ -219,7 +222,6 @@ void aes_encrypt(unsigned char* input, unsigned char* output, unsigned char* exp
             block[(i + (j * 4))] = input[(i * 4) + j];
     }
 
-
     aes_main(expandedKey, numberOfRounds, block);
 
     for (i = 0; i < 4; i++)
@@ -230,10 +232,7 @@ void aes_encrypt(unsigned char* input, unsigned char* output, unsigned char* exp
     }
 
     // de-allocate memory for expandedKey
-    free(expandedKey);
-    expandedKey = NULL;
-
-
+ 
 }
 
 void aes_decrypt(unsigned char* input, unsigned char* output, unsigned char* expandedKey, int size, int expandedKeySize)
@@ -319,7 +318,7 @@ void aes_invMain(unsigned char* expandedKey, int numberOfRounds, unsigned char* 
         // Mix Columns
 
         invMixColumns(state);
-        
+
     }
 
     //!!FINAL ROUND
@@ -329,7 +328,7 @@ void aes_invMain(unsigned char* expandedKey, int numberOfRounds, unsigned char* 
     for (i = 0; i < 4; i++)
     {
         for (j = 0; j < 4; j++) {
-            roundKey[i + (j * 4)] = expandedKey[ (i * 4) + j];
+            roundKey[i + (j * 4)] = expandedKey[(i * 4) + j];
         }
     }
 
@@ -532,19 +531,26 @@ void invShiftRow(unsigned char* state)
 
 }
 
-int main() {
-    int i, j,n;
+int main() 
+{
+    int i, j = 0 , l = 0 , n, k;
     int size = 16;
     unsigned char* expandedKey;
     int expandedKeySize = 176;
     expandedKey = (unsigned char*)malloc(176 * sizeof(unsigned char));
-    unsigned char key[16] = { 'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.' };
-    unsigned char message[16] = { 'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
-    unsigned char encryptedtext[16];
-    unsigned char decryptedtext[16];
+    //unsigned char key[17];
+    unsigned char plainText[1024];
+    unsigned char cipherText[1024];
+    unsigned char encryptedText[1024];
+    unsigned char decryptedBuffer[1024];
+    unsigned char encryptedBlock[16];
+    unsigned char decryptedBlock[16];
+
     char arr[100];
 
-    while (1) {
+    // Taking the 16 bytes of key from user
+
+    /*while (1) {
         printf("Please enter your key(keys max lentgh must be 16): \n");
         n = input(arr, 100);
 
@@ -557,34 +563,202 @@ int main() {
             printf("\nYou must enter at least one character!!\n");
             continue;
         }
-        else{
+        else if(n == 16){
             break;
         }
-     
+        else {
+            arr[16] = '\0';
+            for (i = n; i < 16; i++) {
+                arr[i] = '0';
+            }
+            break;
+        }
+
+    }
+
+    for (i = 0; i < 16; i++) 
+    {
+        key[i] = arr[i];
+    }
+
+    key[16] = '\0';*/
+
+    // the cipher key
+    unsigned char key[16] = { 'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.' };
+
+    // the plaintext
+
+    while (1)
+    {
+        printf("\nEnter your message or press q for quit:\n");
+        n = input(plainText, 1024);
+
+        size_t plaintext_length = strlen(plainText);
+    
+        size_t num_blocks = (plaintext_length + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
+    
+        expandKey(expandedKey, key, size, expandedKeySize);
+
+        unsigned char block[16];
+
+    
+        if (n == 1 && (plainText[0] == 'q' || plainText[0] == 'Q'))
+        {
+            break;
+        }
+
+        for (size_t i = 0; i < num_blocks; i++)
+        {
+            unsigned char block[AES_BLOCK_SIZE];
+            unsigned char decrypted_block[AES_BLOCK_SIZE];
+
+            // Copy the current block into the block array
+            size_t block_start = i * AES_BLOCK_SIZE;
+            size_t block_length = 16;
+            memcpy(block, plainText + block_start, block_length);
+
+            if (i == num_blocks - 1)
+            {
+                for (j = plaintext_length % AES_BLOCK_SIZE; j < AES_BLOCK_SIZE; j++)
+                {
+                    block[j] = 0x00;
+                }
+                block[j - 1] = '\0';
+            }
+
+            aes_encrypt(block, encryptedBlock, expandedKey, 16, 176);
+
+            // Copy the encrypted block into the decrypted text array
+            memcpy(encryptedText + block_start, encryptedBlock, block_length);
+
+        }
     }
     
-
-
-    expandKey(expandedKey, key, size, expandedKeySize);
-
-    printf("\nexpandedKey :\n");
-
-    for (i = 0; i < expandedKeySize; i++)
+    while (1)
     {
-        printf("%2.2x%c", expandedKey[i], ((i + 1) % 16) ? ' ' : '\n');
+        printf("\nEnter your message or press q for quit:\n");
+        n = input(plainText, 1024);
+
+        size_t plaintext_length = strlen(plainText);
+
+        size_t num_blocks = (plaintext_length + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
+
+        expandKey(expandedKey, key, size, expandedKeySize);
+
+        unsigned char block[16];
+
+        for (i = 0; i < num_blocks; i++)
+        {
+            unsigned char block[AES_BLOCK_SIZE];
+            unsigned char decrypted_block[AES_BLOCK_SIZE];
+
+            size_t block_start = i * AES_BLOCK_SIZE;
+            size_t block_length = 16;
+            memcpy(block, encryptedText + block_start, block_length);
+
+            aes_decrypt(block, decryptedBlock, expandedKey, 16, 176);
+
+            memcpy(decryptedBuffer + block_start, decryptedBlock, block_length);
+
+        }
     }
+    
+   
 
-    aes_encrypt(message, encryptedtext, expandedKey, 16, 176);
+    
 
-    expandKey(expandedKey, key, size, expandedKeySize);
-
-    aes_decrypt(encryptedtext, decryptedtext, expandedKey, 16, 176);
-
-    printf("\nDecrypted text (HEX format):\n");
-
-    for (i = 0; i < sizeof(decryptedtext); i++)
+    /*while (1)
     {
-        printf("%c", decryptedtext[i]);
-    }
 
+        for (i = 0; i < BUFFER_SİZE; i++);
+        {
+            messageBuffer[i] = messageBuffer[i] & 0;
+        }
+
+        for (i = 0; i < BUFFER_SİZE; i++);
+        {
+            printf("%c",messageBuffer[i]);
+        }
+
+        printf("\nEnter your message or press q for quit:\n");
+        n = input(messageBuffer, 1024);        
+        
+        for (i = 0; i <= n / 16; i * 16) 
+        {
+            k = 0;
+            for (j = i; j < i + 16; j++)
+            {
+                temp[k] = messageBuffer[j];
+                k++;
+            }
+
+            temp[k] = '\0';
+
+
+            expandKey(expandedKey, key, size, expandedKeySize);
+
+            aes_encrypt(temp, encryptedtext, expandedKey, 16, 176);
+
+            k = 0;
+            for (j = i; j < i + 16; j++) 
+            {
+                encryptedBuffer[j] = encryptedtext[k];
+                k++;
+            }
+        }
+
+
+        for (i = 0; i <= n / 16; i * 16)
+        {
+            k = 0;
+            for (j = i; j < i + 16; j++)
+            {
+                temp[k] = encryptedBuffer[j];
+                k++;
+            }
+
+            temp[k] = '\0';
+
+            expandKey(expandedKey, key, size, expandedKeySize);
+
+            aes_decrypt(encryptedtext, decryptedtext, expandedKey, 16, 176);
+
+            k = 0;
+            for (j = i; j < i + 16; j++)
+            {
+                encryptedBuffer[j] = decryptedtext[k];
+                k++;
+            }
+        }*/
+
+        
+        
+
+        /*
+        else if (n < 16) 
+        {
+            expandKey(expandedKey, key, size, expandedKeySize);
+
+            printf("\nexpandedKey :\n");
+
+            for (i = 0; i < expandedKeySize; i++)
+            {
+                printf("%2.2x%c", expandedKey[i], ((i + 1) % 16) ? ' ' : '\n');
+            }
+
+            aes_encrypt(temp, encryptedtext, expandedKey, 16, 176);
+
+            expandKey(expandedKey, key, size, expandedKeySize);
+
+            aes_decrypt(encryptedtext, decryptedtext, expandedKey, 16, 176);
+
+            printf("\nDecrypted text (HEX format):\n");
+
+            for (i = 0; i < sizeof(decryptedtext); i++)
+            {
+                printf("%c", decryptedtext[i]);
+            }
+        }
+    }*/
+       
 }
