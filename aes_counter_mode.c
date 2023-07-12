@@ -666,7 +666,6 @@ int main()
                 decryptedBlock[j] ^= block[j];
             }
             
-            decryptedBlock[j] = '\0';
 
             memcpy(decryptedBuffer + block_start, decryptedBlock, block_length);
 
@@ -688,7 +687,7 @@ int main()
         }   
 
         printf("\n%s\n", decryptedBuffer);
-
+        i = 0;
 
     }      
 }
