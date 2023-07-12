@@ -538,16 +538,17 @@ int main()
     unsigned char* expandedKey;
     int expandedKeySize = 176;
     expandedKey = (unsigned char*)malloc(176 * sizeof(unsigned char));
-    //unsigned char key[17];
+    unsigned char key[17];
     unsigned char plainText[1024];
     unsigned char encryptedText[1024];
     unsigned char decryptedBuffer[1024];
     unsigned char encryptedBlock[16];
     unsigned char decryptedBlock[16];
+    unsigned char arr[16];
 
     // Taking the 16 bytes of key from user
 
-    /*while (1) {
+    while (1) {
         printf("Please enter your key(keys max lentgh must be 16): \n");
         n = input(arr, 100);
 
@@ -564,9 +565,9 @@ int main()
             break;
         }
         else {
-            arr[16] = '\0';
-            for (i = n; i < 16; i++) {
-                arr[i] = '0';
+            for (i = n; i < 16; i++) 
+            {
+                arr[i] = 0x00;
             }
             break;
         }
@@ -578,10 +579,8 @@ int main()
         key[i] = arr[i];
     }
 
-    key[16] = '\0';*/
+    key[16] = '\0';
 
-    // the cipher key
-    unsigned char key[16] = { 'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.' };
 
 
     while (1)
@@ -629,6 +628,7 @@ int main()
 
         }
 
+
         for (i = 0; i < num_blocks; i++)
         {
             unsigned char block[AES_BLOCK_SIZE];
@@ -643,5 +643,6 @@ int main()
             memcpy(decryptedBuffer + block_start, decryptedBlock, block_length);
 
         }
+
     }      
 }
