@@ -527,8 +527,7 @@ int main()
     int i, j = 0 , l = 0 , n, k;
     int size = 16;
     int expandedKeySize = 176;
-    unsigned char* expandedKey = NULL;
-    expandedKey = (unsigned char*)malloc(176 * sizeof(unsigned char));
+    unsigned char expandedKey[176];
     unsigned char key[17];
     unsigned char plainText[1024];
     unsigned char encryptedText[1024];
@@ -673,7 +672,7 @@ int main()
 
             for (int j = AES_BLOCK_SIZE - 1; j >= 0; j--)
             {
-                if (counter[j] == ~0)
+                if (counter[j] == 0)
                 {
                     // max value, will have overflow and carry
                     counter[j] = 0;
@@ -686,9 +685,10 @@ int main()
                 }
             }
 
-            printf("\n%s\n", decryptedBuffer);
+        }   
 
-        }        
+        printf("\n%s\n", decryptedBuffer);
+
 
     }      
 }
