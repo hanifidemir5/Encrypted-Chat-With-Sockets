@@ -5,6 +5,7 @@
 
 #define BUFFER_SİZE 1024
 #define AES_BLOCK_SIZE 16
+#define EXPANDED_KEY_SİZE 176
 
 void expandKey(unsigned char* expandedKey, unsigned char* key, int size, size_t expandedKeySize);
 void core(unsigned char* word, int number);
@@ -522,6 +523,118 @@ void core(unsigned char* word, int number) {
 
 }
 
+int inputProcess(unsigned char* plainText, unsigned char* encryptedText, unsigned char* decryptedBuffer, unsigned char* key, size_t size, unsigned char* iv)
+{
+    size_t plaintext_length = strlen(plainText);
+    size_t num_blocks = (plaintext_length + AES_BLOCK_SIZE ) / AES_BLOCK_SIZE;
+
+    unsigned char decryptedBlock[16];
+    unsigned char encryptedBlock[16];
+    unsigned char expandedKey[EXPANDED_KEY_SİZE];
+    int expandedKeySize = EXPANDED_KEY_SİZE;
+    unsigned char encryptedCounter[16];
+    int i, j = 0, l = 0, n, k;
+    unsigned char block[16];
+    unsigned char counter[17];
+    memcpy(counter, iv, AES_BLOCK_SIZE);
+    counter[16] = '\0';
+    
+    expandKey(expandedKey, key, size, expandedKeySize);
+
+    if (plaintext_length == 1 && (plainText[0] == 'q' || plainText[0] == 'Q'))
+    {
+        return 0;
+    }
+
+    for (size_t i = 0; i < num_blocks; i++)
+    {
+        unsigned char block[AES_BLOCK_SIZE];
+        unsigned char decrypted_block[AES_BLOCK_SIZE];
+
+        // Copy the current block into the block array
+        size_t block_start = i * AES_BLOCK_SIZE;
+        size_t block_length = 16;
+
+        memcpy(block, plainText + block_start, block_length);
+
+        if (i == num_blocks - 1)
+        {
+            for (j = plaintext_length % AES_BLOCK_SIZE; j < AES_BLOCK_SIZE; j++)
+            {
+                block[j] = 0x00;
+            }
+            block[j - 1] = '\0';
+        }
+
+        aes_encrypt(counter, encryptedCounter, expandedKey, 16, 176);
+
+        for (j = 0; j < AES_BLOCK_SIZE; j++)
+        {
+            encryptedBlock[j] = block[j] ^ encryptedCounter[j];
+        }
+
+        // Copy the encrypted block into the decrypted text array
+        memcpy(encryptedText + block_start, encryptedBlock, block_length);
+
+        for (j = AES_BLOCK_SIZE - 1; j >= 0; j--)
+        {
+            if (counter[j] == 0)
+            {
+                counter[j] = 0;
+            }
+            else
+            {
+                counter[j]++;
+                break;
+            }
+        }
+
+    }
+
+    memcpy(counter, iv, AES_BLOCK_SIZE * sizeof(unsigned char));
+
+    for (i = 0; i < num_blocks; i++)
+    {
+
+        unsigned char block[AES_BLOCK_SIZE];
+        unsigned char decrypted_block[AES_BLOCK_SIZE];
+
+        size_t block_start = i * AES_BLOCK_SIZE;
+        size_t block_length = 16;
+        memcpy(block, encryptedText + block_start, block_length);
+
+        aes_encrypt(counter, decryptedBlock, expandedKey, 16, 176);
+
+        for (int j = 0; j < AES_BLOCK_SIZE; j++)
+        {
+            decryptedBlock[j] ^= block[j];
+        }
+
+
+        memcpy(decryptedBuffer + block_start, decryptedBlock, block_length);
+
+        for (int j = AES_BLOCK_SIZE - 1; j >= 0; j--)
+        {
+            if (counter[j] == 0)
+            {
+                // max value, will have overflow and carry
+                counter[j] = 0;
+            }
+            else
+            {
+                // increment by 1
+                counter[j]++;
+                break;
+            }
+        }
+
+    }
+
+    printf("\n%s , size of %d\n", decryptedBuffer,strlen(decryptedBuffer));
+
+    i = 0;
+}
+
 int main() 
 {
     int i, j = 0 , l = 0 , n, k;
@@ -532,16 +645,9 @@ int main()
     unsigned char plainText[1024];
     unsigned char encryptedText[1024];
     unsigned char decryptedBuffer[1024];
-    unsigned char decryptedBlock[16];
     unsigned char arr[16];
-    unsigned char encryptedBlock[17];
-    unsigned char counter[17];
     unsigned char encryptedCounter [16];
     unsigned char iv[16] = "0000000000000000";
-
-    memcpy(counter, iv, 16);
-    
-    counter[16] = '\0';
 
     // Taking the 16 bytes of key from user
 
@@ -581,113 +687,14 @@ int main()
 
     while (1)
     {
-
-        unsigned char* block = NULL;
-
-        block = malloc(16 * sizeof(unsigned char));
-
         printf("\nEnter your message or press q for quit:\n");
 
         n = input(plainText, 1024);
 
-        size_t plaintext_length = strlen(plainText);
-    
-        size_t num_blocks = (plaintext_length + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE;
-    
-        expandKey(expandedKey, key, size, expandedKeySize);
+        i = inputProcess(plainText,encryptedText,decryptedBuffer,key,size,iv);
 
-        if (n == 1 && (plainText[0] == 'q' || plainText[0] == 'Q'))
-        {
+        if (i == 0) {
             break;
         }
-
-        for (size_t i = 0; i < num_blocks; i++)
-        {
-            unsigned char block[AES_BLOCK_SIZE];
-            unsigned char decrypted_block[AES_BLOCK_SIZE];
-
-            // Copy the current block into the block array
-            size_t block_start = i * AES_BLOCK_SIZE;
-            size_t block_length = 16;
-
-            memcpy(block, plainText + block_start, block_length);
-
-            if (i == num_blocks - 1)
-            {
-                for (j = plaintext_length % AES_BLOCK_SIZE; j < AES_BLOCK_SIZE; j++)
-                {
-                    block[j] = 0x00;
-                }
-                block[j - 1] = '\0';
-            }
-
-            aes_encrypt(counter, encryptedCounter, expandedKey, 16, 176);
-
-            for (j = 0; j < AES_BLOCK_SIZE; j++) 
-            {
-                encryptedBlock[j] = block[j] ^ encryptedCounter[j];
-            }
-
-            // Copy the encrypted block into the decrypted text array
-            memcpy(encryptedText + block_start, encryptedBlock, block_length);
-            
-            for (j = AES_BLOCK_SIZE - 1; j >= 0; j--) 
-            {
-                if (counter[j] == 0) 
-                {
-                    counter[j] = 0;
-                }
-                else 
-                {
-                    counter[j]++;
-                    break;
-                }
-            }
-            
-        }
-
-        memcpy(counter, iv, AES_BLOCK_SIZE * sizeof(unsigned char));
-
-
-        for (i = 0; i < num_blocks; i++)
-        {
-            
-            unsigned char block[AES_BLOCK_SIZE];
-            unsigned char decrypted_block[AES_BLOCK_SIZE];
-
-            size_t block_start = i * AES_BLOCK_SIZE;
-            size_t block_length = 16;
-            memcpy(block, encryptedText + block_start, block_length);
-            
-            aes_encrypt(counter, decryptedBlock, expandedKey, 16, 176);
-
-            for (int j = 0; j <AES_BLOCK_SIZE; j++)
-            {
-                decryptedBlock[j] ^= block[j];
-            }
-            
-
-            memcpy(decryptedBuffer + block_start, decryptedBlock, block_length);
-
-            for (int j = AES_BLOCK_SIZE - 1; j >= 0; j--)
-            {
-                if (counter[j] == 0)
-                {
-                    // max value, will have overflow and carry
-                    counter[j] = 0;
-                }
-                else
-                {
-                    // increment by 1
-                    counter[j]++;
-                    break;
-                }
-            }
-
-        }   
-
-        printf("\n%s\n", decryptedBuffer);
-        i = 0;
-
     }      
 }
