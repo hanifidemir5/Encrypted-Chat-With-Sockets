@@ -545,9 +545,30 @@ void encryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
     unsigned char cipherCounterBlock[AES_BLOCK_SIZE];
     unsigned char encryptedBlock[AES_BLOCK_SIZE];
     unsigned char block[AES_BLOCK_SIZE];
+    unsigned char nonce[NONCE_SIZE];
+    unsigned char tmp[16];
+
+    randomArray(nonce, 8);
+
+    memcpy(counter, nonce, 8);
+
+    for (int i = 8; i < 16; i++)
+    {
+        counter[i] = '0';
+    }
+
+    counter[16] = '\0';
+
+    for (int j = 0; j < AES_BLOCK_SIZE; j++)
+    {
+        printf("%2.2x%c", counter[j], ((j + 1) % 16) ? ' ' : '\n');
+        tmp[j] = counter[j];
+    }
+
+    printf("\n Counter length is : %d \n", strlen(counter));
 
     expandKey(expandedKey, key, expandedKeySize);
-
+  
     for (size_t i = 0; i < num_blocks; i++)
     {
         unsigned char block[AES_BLOCK_SIZE];
@@ -594,12 +615,16 @@ void encryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
 
     }
 
+    output[num_blocks * 16] = '\0';
+
+    memcpy(counter, tmp, 16);
+
 }
 
 void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* key, unsigned char* counter)
 {
-    size_t plaintext_length = strlen(input);
-    size_t num_blocks = (plaintext_length + AES_BLOCK_SIZE) / AES_BLOCK_SIZE;
+    size_t input_length = strlen(input);
+    size_t num_blocks = (input_length + AES_BLOCK_SIZE) / AES_BLOCK_SIZE - 1;
     int i, j = 0, l = 0, n, k;
     int expandedKeySize = EXPANDED_KEY_SIZE;
 
@@ -614,7 +639,8 @@ void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
 
         size_t block_start = i * AES_BLOCK_SIZE;
         size_t block_length = AES_BLOCK_SIZE;
-        memcpy(block, output + block_start, block_length);
+
+        memcpy(block, input + block_start, block_length);
 
         aes_encrypt(counter, decryptedBlock, expandedKey, AES_BLOCK_SIZE, EXPANDED_KEY_SIZE);
 
@@ -622,6 +648,7 @@ void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
         {
             decryptedBlock[j] ^= block[j];
         }
+
 
         memcpy(output + block_start, decryptedBlock, block_length);
 
@@ -642,6 +669,8 @@ void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
 
     }
 
+    output[num_blocks * 16] = '\0';
+
 }
 
 int main() 
@@ -650,20 +679,8 @@ int main()
     unsigned char cipherText[BUFFER_SIZE];
     unsigned char decreptedText[BUFFER_SIZE];
     unsigned char key[] = "0123456789012345";
-    unsigned char counter[AES_BLOCK_SIZE];
+    unsigned char counter[AES_BLOCK_SIZE + 1];
     unsigned char tmp[AES_BLOCK_SIZE];
-    unsigned char nonce[NONCE_SIZE];
-
-    //randomArray(counter, 8);
-
-    //memcpy(nonce, counter, 8);
-
-    for (int i = 0; i < 16; i++)
-    {
-        counter[i] = 0x00;
-    }
-
-    //memcpy(tmp, counter, 16);
 
     fgets(plainText, BUFFER_SIZE, stdin);
 
@@ -672,10 +689,18 @@ int main()
 
     encryptMessage(plainText, cipherText, key, counter);
 
-    for (int j = 0; j < strlen(plainText); j++)
+    for (int j = 0; j < AES_BLOCK_SIZE; j++)
     {
-        printf("%2.2x%c", cipherText[j], ((j + 1) % 16) ? ' ' : '\n');
+        printf("%2.2x%c", counter[j], ((j + 1) % 16) ? ' ' : '\n');
     }
+
+    printf("\n Counter length is : %d \n", strlen(counter));
+
+    //printf("asda %d\n", strlen(cipherText));
+
+    decryptMessage(cipherText, decreptedText, key, counter);
+
+    printf("asda %s and length:%d\n", decreptedText,strlen(decreptedText));
 
 
 }
