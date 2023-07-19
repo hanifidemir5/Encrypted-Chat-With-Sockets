@@ -40,6 +40,7 @@ unsigned __stdcall ClientThread(void* arg) {
     }
 
     snprintf(key, BUFFER_SIZE, "%s", key);
+
     if (send(clientSocket, key, strlen(key), 0) == SOCKET_ERROR) {
         perror("send failed");
         exit(EXIT_FAILURE);
@@ -51,6 +52,7 @@ unsigned __stdcall ClientThread(void* arg) {
         strncat(userList, clients[i].username, sizeof(userList) - strlen(userList) - 1);
         strncat(userList, "\n", sizeof(userList) - strlen(userList) - 1);
     }
+
     send(clientSocket, userList, strlen(userList), 0);
 
 
@@ -61,7 +63,8 @@ unsigned __stdcall ClientThread(void* arg) {
             break;
         }
 
-        printf("%s's message: %s\n", username, buffer);
+        printf("%s's message: %s and it's length is %d \n", username, buffer,strlen(buffer));
+
 
         // Process client message (e.g., perform some operation)
 
@@ -70,8 +73,26 @@ unsigned __stdcall ClientThread(void* arg) {
             char* recipient = strtok(buffer + 1, " ");  // Skip the '@' symbol
             char* messageText = strtok(NULL, "");       // Get the rest of the message
 
+            unsigned char privateUsername[BUFFER_SIZE] = { 0 };
+            unsigned char private[] = " (private)";
+            private[strlen(private)] = '\0';
+            username[strlen(username)] = '\0';
+
+            // Get sender username
+            strcat(privateUsername, username);
+            // Make username null terminated 
+            privateUsername[strlen(username)] = '\0';
+            printf("privateUsername is :%s and privateUsernameLength is : %d\n", privateUsername,strlen(privateUsername));
+            // add " (private)" at the end of the nick
+            strcat(privateUsername, private);
+            printf("privateUsername is :%s and privateUsernameLength is : %d\n", privateUsername, strlen(privateUsername));
+            // null terminate whole string
+            privateUsername[strlen(username) + strlen(private)] = '\0';
+
+            
+            
             // Construct the private message
-            snprintf(message, sizeof(message), "%s (private): %s", username, messageText);
+            snprintf(message, sizeof(message), "%d%s%s", strlen(privateUsername), privateUsername, message);
 
             // Find the recipient in the client list
             int recipientFound = 0;
@@ -90,10 +111,10 @@ unsigned __stdcall ClientThread(void* arg) {
                 send(clientSocket, response, strlen(response), 0);
             }
         }
-        else {
+        else 
+        {
             // Construct the broadcast message
-            snprintf(message, sizeof(message), "%s (broadcast): %s", username, buffer);
-
+            snprintf(message, sizeof(message), "%d%s%s",strlen(username), username, buffer);
             // Send the broadcast message to all clients except the sender
             for (int i = 0; i < clientCount; i++) {
                 if (clients[i].socket != clientSocket) {
