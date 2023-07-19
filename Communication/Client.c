@@ -3,42 +3,72 @@
 #include <string.h>
 #include <winsock2.h>
 #include <process.h>
+#include "aes.h"
+
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
+char recipientNick[BUFFER_SIZE];
+unsigned char key[BUFFER_SIZE];
+char accualMessage[BUFFER_SIZE];
+int deneme = 0;
+
 // Function to handle receiving data from the server
 unsigned __stdcall ReceiveThread(void* arg) {
+    int i,j;
     SOCKET clientSocket = *(SOCKET*)arg;
     char buffer[BUFFER_SIZE] = { 0 };
-    char key[BUFFER_SIZE];
-
-    if (recv(clientSocket, buffer, BUFFER_SIZE - 1, 0) == SOCKET_ERROR) {
-        perror("receive failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Store the received key-value pair for further processing
-    strncpy(key, buffer, BUFFER_SIZE);
-
-
-    printf("Received key: %s\n", key);
-
-    memset(buffer, 0, BUFFER_SIZE);
+    char decryptedText[BUFFER_SIZE] = { 0 };
+    char counter[AES_BLOCK_SIZE + 1] = { 0 };
+    char accualMessage[BUFFER_SIZE] = { 0 };
+    unsigned char temp[BUFFER_SIZE] = { 0 };
+    char usernameLengthChar = '5';
+    int usernameLengthInt;
+    char username[BUFFER_SIZE] = { 0 };
 
     while (1) {
+
+        j = 0;
         // Receive response from the server
         if (recv(clientSocket, buffer, BUFFER_SIZE, 0) == SOCKET_ERROR) {
             perror("receive failed");
             exit(EXIT_FAILURE);
         }
 
-        printf("Server response: %s\n", buffer);
+        usernameLengthChar = buffer[0];
+
+        usernameLengthInt = (int)(usernameLengthChar - '0');
+
+        strcpy(temp, buffer);
+
+        temp[strlen(buffer)] = '\0';
+
+        strcpy(accualMessage, buffer + (1 + usernameLengthInt), (strlen(buffer) - (17 + usernameLengthInt)));
+
+        accualMessage[(strlen(buffer) - (17 + usernameLengthInt))] = '\0';
+
+        strcpy(username, buffer + 1,usernameLengthInt);
+
+        username[usernameLengthInt] = '\0';
+        
+        for (i = 0; i < 16; i++)
+        {
+            counter[15 - i] = temp[(strlen(temp) - i - 1)];
+        }
+
+        counter[16] = '\0';
+
+        decryptMessage(accualMessage, decryptedText, key, counter);
+
+        printf("%s: %s\n",username, decryptedText);
 
         // Clear the buffer
         memset(buffer, 0, BUFFER_SIZE);
+        memset(decryptedText, 0, BUFFER_SIZE);
+        memset(counter, 0, AES_BLOCK_SIZE);
     }
 
     _endthreadex(0);
@@ -52,6 +82,12 @@ int main() {
     HANDLE receiveThread;
     unsigned threadID;
     char message[BUFFER_SIZE] = { 0 };
+    unsigned char cipherText[BUFFER_SIZE];
+    unsigned char counter[AES_BLOCK_SIZE + 1];
+    unsigned char buffer[BUFFER_SIZE] = { 0 };
+
+
+
 
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -80,6 +116,40 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    char username[BUFFER_SIZE] = { 0 };
+    printf("Enter your username: ");
+    fgets(username, BUFFER_SIZE, stdin);
+
+    // Remove the newline character from the message
+    username[strcspn(username, "\n")] = '\0';
+
+    if (send(clientSocket, username, strlen(username), 0) == SOCKET_ERROR) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive key
+    if (recv(clientSocket, buffer, BUFFER_SIZE - 1, 0) == SOCKET_ERROR) {
+        perror("receive failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Store the received key for further processing
+    strncpy(key, buffer, BUFFER_SIZE);
+
+    memset(buffer, 0, BUFFER_SIZE);
+
+    // Receive user list
+    if (recv(clientSocket, buffer, BUFFER_SIZE - 1, 0) == SOCKET_ERROR) {
+        perror("receive failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Store the received key for further processing
+    printf(" User list is :\n %s", buffer);
+
+    memset(buffer, 0, BUFFER_SIZE);
+
     // Create a thread for receiving data from the server
     receiveThread = (HANDLE)_beginthreadex(NULL, 0, &ReceiveThread, (void*)&clientSocket, 0, &threadID);
     if (receiveThread == NULL) {
@@ -87,19 +157,67 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    printf("Welcome to the chat room!!\n ");
+
+
     // Communication loop
     while (1) {
-        printf("Enter a message: ");
         fgets(message, BUFFER_SIZE, stdin);
 
         // Remove the newline character from the message
         message[strcspn(message, "\n")] = '\0';
 
-        if ((message[0] == 'q' || message[0] == 'Q') && strlen(message) == 1) 
+        if ((message[0] == 'q' || message[0] == 'Q') && strlen(message) == 1)
         {
             break;
         }
 
+        //Encrypt the message
+        encryptMessage(message, cipherText, key, counter);
+
+        // if its a private message get the user
+        if (message[0] == '@') 
+        {
+            char* recipient = strtok(message, " ");  // Get receipients nick with '@'
+            char* nextChar = recipient + strlen(recipient);
+            if (recipient != NULL) 
+            {
+                // Get the rest of the message
+                char* messageText = strtok(NULL, "");       
+
+                strcpy(recipientNick, recipient);
+                if (messageText != NULL)
+                {
+                    strcpy(accualMessage, messageText);
+                    //Encrypt the message without recipient's nick
+                    encryptMessage(accualMessage, cipherText, key, counter);
+                }
+                else 
+                {
+                    printf("Message is empty!!\n");
+                    continue;
+                }
+                // Copy recipient's nick into message array
+                strcpy(message, recipientNick);
+                // Add cipherText to the end of message array
+                strcpy(message, " ");
+                // Add cipherText to the end of message array
+                if (cipherText != NULL) 
+                {
+                    strcat(message, cipherText);
+                }
+            }
+        }
+        else 
+        {
+            //Encrypt the message
+            encryptMessage(message, cipherText, key, counter);
+            strcpy(message, cipherText);      
+        }
+
+        // Add Counter 
+        strcat(message, counter);
+        
 
         // Send the message to the server
         if (send(clientSocket, message, strlen(message), 0) == SOCKET_ERROR) {
@@ -116,3 +234,36 @@ int main() {
 
     return 0;
 }
+
+
+/*int main()
+[{]
+    unsigned char plainText[BUFFER_SIZE];
+    unsigned char cipherText[BUFFER_SIZE];
+    unsigned char decreptedText[BUFFER_SIZE];
+    unsigned char key[] = "0123456789012345";
+    unsigned char counter[AES_BLOCK_SIZE + 1];
+    unsigned char tmp[AES_BLOCK_SIZE];
+
+    fgets(plainText, BUFFER_SIZE, stdin);
+
+    // Remove the newline character from the message
+    plainText[strcspn(plainText, "\n")] = '\0';
+
+    encryptMessage(plainText, cipherText, key, counter);
+
+    for (int j = 0; j < AES_BLOCK_SIZE; j++)
+    {
+        printf("%2.2x%c", counter[j], ((j + 1) % 16) ? ' ' : '\n');
+    }
+
+    printf("\n Counter length is : %d \n", strlen(counter));
+
+    //printf("asda %d\n", strlen(cipherText));
+
+    decryptMessage(cipherText, decreptedText, key, counter);
+
+    printf("asda %s and length:%d\n", decreptedText, strlen(decreptedText));
+
+
+}*/
