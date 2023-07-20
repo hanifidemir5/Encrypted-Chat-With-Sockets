@@ -29,6 +29,7 @@ unsigned __stdcall ClientThread(void* arg) {
     char buffer[BUFFER_SIZE] = { 0 };
     char response[BUFFER_SIZE] = { 0 };
     char message[BUFFER_SIZE + BUFFER_SIZE] = { 0 };
+    unsigned char senderUsernameLength;
 
     // Find the client's username
     char* username = NULL;
@@ -65,34 +66,34 @@ unsigned __stdcall ClientThread(void* arg) {
 
         printf("%s's message: %s and it's length is %d \n", username, buffer,strlen(buffer));
 
-
-        // Process client message (e.g., perform some operation)
-
         // Check if it is a private message
         if (buffer[0] == '@') {
             char* recipient = strtok(buffer + 1, " ");  // Skip the '@' symbol
             char* messageText = strtok(NULL, "");       // Get the rest of the message
 
+            messageText[strlen(messageText)] = '\0';
+
+            unsigned char privateMessage[BUFFER_SIZE] = { 0 };
             unsigned char privateUsername[BUFFER_SIZE] = { 0 };
             unsigned char private[] = " (private)";
             private[strlen(private)] = '\0';
-            username[strlen(username)] = '\0';
 
             // Get sender username
-            strcat(privateUsername, username);
-            // Make username null terminated 
-            privateUsername[strlen(username)] = '\0';
-            printf("privateUsername is :%s and privateUsernameLength is : %d\n", privateUsername,strlen(privateUsername));
+            strcpy(privateUsername, username);
             // add " (private)" at the end of the nick
             strcat(privateUsername, private);
-            printf("privateUsername is :%s and privateUsernameLength is : %d\n", privateUsername, strlen(privateUsername));
-            // null terminate whole string
-            privateUsername[strlen(username) + strlen(private)] = '\0';
+            // null terminate username + " (private)" string
+            privateUsername[strlen(privateUsername)] = '\0';
+            // assign messageText in order to make it clear where accual message is 
+            strcpy(privateMessage, messageText);
+            // null terminate privateMessage
+            privateMessage[strlen(privateMessage)] = '\0';
+            // typecast privateUsernameLength to chat in order to send it in one byte 
+            senderUsernameLength = (char)strlen(privateUsername);
 
-            
-            
             // Construct the private message
-            snprintf(message, sizeof(message), "%d%s%s", strlen(privateUsername), privateUsername, message);
+            snprintf(message, sizeof(message), "%c%s%s", senderUsernameLength, privateUsername, privateMessage);
+
 
             // Find the recipient in the client list
             int recipientFound = 0;
@@ -113,8 +114,10 @@ unsigned __stdcall ClientThread(void* arg) {
         }
         else 
         {
+            senderUsernameLength = (char)strlen(username);
+
             // Construct the broadcast message
-            snprintf(message, sizeof(message), "%d%s%s",strlen(username), username, buffer);
+            snprintf(message, sizeof(message), "%c%s%s", senderUsernameLength, username, buffer);
             // Send the broadcast message to all clients except the sender
             for (int i = 0; i < clientCount; i++) {
                 if (clients[i].socket != clientSocket) {
@@ -177,14 +180,14 @@ int main() {
         else {
             for (i = strlen(key); i < 16; i++)
             {
-                key[i] = 0x00;
+                key[i] = 0x01;
             }
             break;
         }
 
     }
 
-    printf("key is %s\n", key);
+    printf("key is %s and its length is : %d\n", key,strlen(key));
 
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
