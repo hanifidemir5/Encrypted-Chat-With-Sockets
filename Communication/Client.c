@@ -20,14 +20,14 @@ int deneme = 0;
 unsigned __stdcall ReceiveThread(void* arg) {
     int i,j;
     SOCKET clientSocket = *(SOCKET*)arg;
-    char buffer[BUFFER_SIZE] = { 0 };
-    char decryptedText[BUFFER_SIZE] = { 0 };
-    char counter[AES_BLOCK_SIZE + 1] = { 0 };
-    char accualMessage[BUFFER_SIZE] = { 0 };
-    unsigned char temp[BUFFER_SIZE] = { 0 };
-    char usernameLengthChar = '5';
-    int usernameLengthInt;
-    char username[BUFFER_SIZE] = { 0 };
+    unsigned char buffer[BUFFER_SIZE] = { '\0' };
+    unsigned char* decryptedText = malloc(BUFFER_SIZE);
+    unsigned char counter[AES_BLOCK_SIZE + 1] = { '\0' };
+    unsigned char accualMessage[BUFFER_SIZE] = { '\0' };
+    unsigned char temp[BUFFER_SIZE] = { '\0' };
+    unsigned char username[BUFFER_SIZE] = { 0 };
+    unsigned char usernameLengthChar;
+    unsigned int usernameLengthInt;
 
     while (1) {
 
@@ -40,7 +40,7 @@ unsigned __stdcall ReceiveThread(void* arg) {
 
         usernameLengthChar = buffer[0];
 
-        usernameLengthInt = (int)(usernameLengthChar - '0');
+        usernameLengthInt = (int)(usernameLengthChar);
 
         strcpy(temp, buffer);
 
@@ -48,7 +48,7 @@ unsigned __stdcall ReceiveThread(void* arg) {
 
         strcpy(accualMessage, buffer + (1 + usernameLengthInt), (strlen(buffer) - (17 + usernameLengthInt)));
 
-        accualMessage[(strlen(buffer) - (17 + usernameLengthInt))] = '\0';
+        accualMessage[strlen(accualMessage)] = '\0';
 
         strcpy(username, buffer + 1,usernameLengthInt);
 
@@ -61,9 +61,18 @@ unsigned __stdcall ReceiveThread(void* arg) {
 
         counter[16] = '\0';
 
-        decryptMessage(accualMessage, decryptedText, key, counter);
+        accualMessage[strlen(accualMessage) - 16] = '\0';
 
-        printf("%s: %s\n",username, decryptedText);
+        unsigned char decryptedText[BUFFER_SIZE] = {'\0'};
+
+        if (decryptedText[0] == '\0')
+        {
+            decryptMessage(accualMessage, decryptedText, key, counter);
+            printf("%s:%s\n", username, decryptedText);
+        }
+        else {
+            printf("Array is not empty");
+        }
 
         // Clear the buffer
         memset(buffer, 0, BUFFER_SIZE);
@@ -172,23 +181,23 @@ int main() {
             break;
         }
 
-        //Encrypt the message
-        encryptMessage(message, cipherText, key, counter);
-
         // if its a private message get the user
         if (message[0] == '@') 
         {
-            char* recipient = strtok(message, " ");  // Get receipients nick with '@'
-            char* nextChar = recipient + strlen(recipient);
+            // Get receipients nick with '@'
+            char* recipient = strtok(message, " ");  
+            // Get the rest of the message
+            char* messageText = strtok(NULL, "");
+
             if (recipient != NULL) 
             {
-                // Get the rest of the message
-                char* messageText = strtok(NULL, "");       
-
                 strcpy(recipientNick, recipient);
+
                 if (messageText != NULL)
                 {
-                    strcpy(accualMessage, messageText);
+                    /*strcpy(accualMessage, messageText);*/
+                    // NULL terminate messageText in order to do encryption
+                    messageText[strlen(messageText)] = '\0';
                     //Encrypt the message without recipient's nick
                     encryptMessage(accualMessage, cipherText, key, counter);
                 }
@@ -197,27 +206,28 @@ int main() {
                     printf("Message is empty!!\n");
                     continue;
                 }
-                // Copy recipient's nick into message array
+                // Copy recipient's nick into message array with @ of course
                 strcpy(message, recipientNick);
-                // Add cipherText to the end of message array
-                strcpy(message, " ");
+                // Add space caracter to indicate target user
+                strcat(message, " ");
                 // Add cipherText to the end of message array
                 if (cipherText != NULL) 
                 {
                     strcat(message, cipherText);
                 }
             }
+            // Add Counter 
+            strcat(message, counter);
         }
         else 
         {
             //Encrypt the message
             encryptMessage(message, cipherText, key, counter);
-            strcpy(message, cipherText);      
+            // Add cipherText to message
+            strcpy(message, cipherText); 
+            // Add Counter 
+            strcat(message, counter);
         }
-
-        // Add Counter 
-        strcat(message, counter);
-        
 
         // Send the message to the server
         if (send(clientSocket, message, strlen(message), 0) == SOCKET_ERROR) {
