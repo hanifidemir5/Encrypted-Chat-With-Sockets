@@ -15,19 +15,20 @@ char recipientNick[BUFFER_SIZE];
 unsigned char key[BUFFER_SIZE];
 char accualMessage[BUFFER_SIZE];
 int deneme = 0;
+typedef int boolean;
 
 // Function to handle receiving data from the server
 unsigned __stdcall ReceiveThread(void* arg) {
     int i,j;
     SOCKET clientSocket = *(SOCKET*)arg;
-    unsigned char buffer[BUFFER_SIZE] = { '\0' };
-    unsigned char* decryptedText = malloc(BUFFER_SIZE);
-    unsigned char counter[AES_BLOCK_SIZE + 1] = { '\0' };
-    unsigned char accualMessage[BUFFER_SIZE] = { '\0' };
-    unsigned char temp[BUFFER_SIZE] = { '\0' };
-    unsigned char username[BUFFER_SIZE] = { 0 };
-    unsigned char usernameLengthChar;
-    unsigned int usernameLengthInt;
+    unsigned char buffer[BUFFER_SIZE] = { '\0' }; // For received input
+    unsigned char* decryptedText = malloc(BUFFER_SIZE); // For output
+    unsigned char counter[AES_BLOCK_SIZE + 1] = { '\0' }; // For counter, different for each message
+    unsigned char actualMessage[BUFFER_SIZE] = { '\0' }; // Assignment of the actual message for private messages 
+    unsigned char temp[BUFFER_SIZE] = { '\0' }; // Temporary array for counter assignment from buffer's last 16 bytes
+    unsigned char senderUserName[BUFFER_SIZE] = { 0 }; // To store username 
+    unsigned char senderUserNameLengthChar; // To store username length as char which provided with message
+    unsigned int senderUserNameLengthInt;  // To turn user name length char to int 
 
     while (1) {
 
@@ -38,19 +39,19 @@ unsigned __stdcall ReceiveThread(void* arg) {
             exit(EXIT_FAILURE);
         }
         // Take buffer's first char which represents username length as char
-        usernameLengthChar = buffer[0];
-        // Turn it int value
-        usernameLengthInt = (int)(usernameLengthChar);
-        // Make buffer NULL terminated in order to copy correctly
-        buffer[strlen(buffer)] = '\0';
+        senderUserNameLengthChar = buffer[0];
+        // Typecast it to int 
+        senderUserNameLengthInt = (int)(senderUserNameLengthChar);
+        // Null terminate recipient's username
+        
         // Use strcpy function which copies the string untill a null char
         strcpy(temp, buffer);
-        // Use memcpy function which you can indicate where to start and stop copying process
-        memcpy(accualMessage, buffer + (1 + usernameLengthInt), (strlen(buffer) - (17 + usernameLengthInt)));
-        // Make accualMessage NULL terminated because memcpy function doesn't do it
-        memcpy(username, buffer + 1,usernameLengthInt);
-        // Again NULL terminate
-        username[usernameLengthInt] = '\0';
+        // Use memcpy function which you can indicate where to start and stop the copying process
+        memcpy(actualMessage, buffer + (1 + senderUserNameLengthInt), (strlen(buffer) - (17 + senderUserNameLengthInt)));
+        // Start after '@' char to take senderUsername 
+        memcpy(senderUserName, buffer + 1,senderUserNameLengthInt);
+        // NULL terminate senderUsername
+        senderUserName[senderUserNameLengthInt] = '\0';
         // Take counter value from end of the buffer
         for (i = 0; i < 16; i++)
         {
@@ -58,28 +59,17 @@ unsigned __stdcall ReceiveThread(void* arg) {
         }
         // Make it NULL terminated
         counter[16] = '\0';
-        // Make output array to use it correctly
-        unsigned char decryptedText[BUFFER_SIZE] = {'\0'};
-        // Check if decryptedText is NULL
-        printf("\nmessage : %s message length: %d counter %s counter length %d key %s keylength %d\n",accualMessage,strlen(accualMessage),counter, strlen(counter),key, strlen(key));
-        if (decryptedText[0] == '\0')
-        {
-            // Decrypt the message 
-            decryptMessage(accualMessage, decryptedText, key, counter);
-            // Print decrypted message
-            printf("%s:%s\n", username, decryptedText);
-        }
-        else {
-            // If output array is not null give error
-            printf("Error, output array is not empty");
-        }
-
+        // Decrypt the message 
+        decryptMessage(actualMessage, decryptedText, key, counter);
+        // Print decrypted message
+        printf("%s:%s\n", senderUserName, decryptedText);
         // Clear the buffer
         memset(buffer, 0, BUFFER_SIZE);
         memset(decryptedText, 0, BUFFER_SIZE);
         memset(counter, 0, AES_BLOCK_SIZE);
     }
-
+    free(decryptedText);
+    // Close thread
     _endthreadex(0);
     return 0;
 }
@@ -124,7 +114,7 @@ int main() {
         perror("connection failed");
         exit(EXIT_FAILURE);
     }
-
+    // Take username from client to sign it in server
     char username[BUFFER_SIZE] = { 0 };
     printf("Enter your username: ");
     fgets(username, BUFFER_SIZE, stdin);
@@ -132,6 +122,7 @@ int main() {
     // Remove the newline character from the message
     username[strcspn(username, "\n")] = '\0';
 
+    // Send username to server
     if (send(clientSocket, username, strlen(username), 0) == SOCKET_ERROR) {
         perror("send failed");
         exit(EXIT_FAILURE);
@@ -145,7 +136,7 @@ int main() {
 
     // Store the received key for further processing
     strncpy(key, buffer, BUFFER_SIZE);
-
+    // Clear buffer to store other values
     memset(buffer, 0, BUFFER_SIZE);
 
     // Receive user list
@@ -156,7 +147,7 @@ int main() {
 
     // Store the received key for further processing
     printf(" User list is :\n %s", buffer);
-
+    // Clear buffer to store other values
     memset(buffer, 0, BUFFER_SIZE);
 
     // Create a thread for receiving data from the server
@@ -166,16 +157,16 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Welcome to the chat room!!\n ");
+    printf("Welcome to the chat room!! Type 'q' or 'Q' to get lonely :( \n ");
 
-
+    boolean running = 1;
     // Communication loop
-    while (1) {
+    while (running) {
         fgets(message, BUFFER_SIZE, stdin);
 
         // Remove the newline character from the message
         message[strcspn(message, "\n")] = '\0';
-
+        // 
         if ((message[0] == 'q' || message[0] == 'Q') && strlen(message) == 1)
         {
             break;
@@ -188,11 +179,12 @@ int main() {
             char* recipient = strtok(message, " ");  
             // Get the rest of the message
             char* messageText = strtok(NULL, "");
-
+            
             if (recipient != NULL) 
             {
+                // Copy target user's nick to recipient
                 strcpy(recipientNick, recipient);
-
+                // Encrypt message before sending
                 if (messageText != NULL)
                 {
                     strcpy(accualMessage, messageText);
@@ -211,15 +203,16 @@ int main() {
                 // Add cipherText to the end of message array
                 if (cipherText != NULL) 
                 {
+                    // Concatenate cipher text at the end of recipient's nick
                     strcat(message, cipherText);
                 }
             }
-            // Add Counter 
+            // At final step add counter to the message 
             strcat(message, counter);
         }
         else 
         {
-            //Encrypt the message
+            // Encrypt the message
             encryptMessage(message, cipherText, key, counter);
             // Add cipherText to message
             strcpy(message, cipherText); 
@@ -228,9 +221,11 @@ int main() {
         }
 
         // Send the message to the server
-        if (send(clientSocket, message, strlen(message), 0) == SOCKET_ERROR) {
+        if (send(clientSocket, message, strlen(message), 0) == SOCKET_ERROR) 
+        {
             perror("send failed");
             exit(EXIT_FAILURE);
+            running = 0;
         }
 
         // Clear the buffer
@@ -242,36 +237,3 @@ int main() {
 
     return 0;
 }
-
-
-/*int main()
-[{]
-    unsigned char plainText[BUFFER_SIZE];
-    unsigned char cipherText[BUFFER_SIZE];
-    unsigned char decreptedText[BUFFER_SIZE];
-    unsigned char key[] = "0123456789012345";
-    unsigned char counter[AES_BLOCK_SIZE + 1];
-    unsigned char tmp[AES_BLOCK_SIZE];
-
-    fgets(plainText, BUFFER_SIZE, stdin);
-
-    // Remove the newline character from the message
-    plainText[strcspn(plainText, "\n")] = '\0';
-
-    encryptMessage(plainText, cipherText, key, counter);
-
-    for (int j = 0; j < AES_BLOCK_SIZE; j++)
-    {
-        printf("%2.2x%c", counter[j], ((j + 1) % 16) ? ' ' : '\n');
-    }
-
-    printf("\n Counter length is : %d \n", strlen(counter));
-
-    //printf("asda %d\n", strlen(cipherText));
-
-    decryptMessage(cipherText, decreptedText, key, counter);
-
-    printf("asda %s and length:%d\n", decreptedText, strlen(decreptedText));
-
-
-}*/
