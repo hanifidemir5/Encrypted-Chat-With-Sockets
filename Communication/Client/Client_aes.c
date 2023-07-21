@@ -8,7 +8,7 @@
 #define BUFFER_SIZE 1024
 #define AES_BLOCK_SIZE 16
 #define EXPANDED_KEY_SIZE 176
-#define NONCE_SIZE 8
+#define NONCE_SIZE 9
 
 void randomArray(unsigned char* arr, int n)
 {
@@ -536,24 +536,31 @@ void encryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
     unsigned char encryptedBlock[AES_BLOCK_SIZE];
     unsigned char block[AES_BLOCK_SIZE];
     unsigned char nonce[NONCE_SIZE];
-    unsigned char tmp[16];
-
+    unsigned char tmp[AES_BLOCK_SIZE + 1 ];
+    // Make nonce NULL terminated in order to use it with memcpy which does not put null at the end of a string
+    nonce[NONCE_SIZE - 1] = '\0';
+    // Randomize nonce
     randomArray(nonce, 8);
-
+    // Null terminate nonce
+    nonce[NONCE_SIZE - 1] = '\0';
+    // Memcopy it to counter
     memcpy(counter, nonce, 8);
-
+    // Null terminate counter after nonce char's
+    counter[9] = '\0';
+    // Fill counter with 0's
     for (int i = 8; i < 16; i++)
     {
         counter[i] = '0';
     }
-
+    // Null terminate counter
     counter[16] = '\0';
-
-    for (int j = 0; j < AES_BLOCK_SIZE; j++)
+    // Copy counter to tmp with strcpy
+    strcpy(tmp, counter);
+    /*for (int j = 0; j < AES_BLOCK_SIZE; j++)
     {
         tmp[j] = counter[j];
-    }
-
+    }*/
+    // Expand Key
     expandKey(expandedKey, key, expandedKeySize);
 
     for (size_t i = 0; i < num_blocks; i++)
@@ -631,13 +638,10 @@ void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
 
         aes_encrypt(counter, decryptedBlock, expandedKey, AES_BLOCK_SIZE, EXPANDED_KEY_SIZE);
 
-
-
         for (int j = 0; j < AES_BLOCK_SIZE; j++)
         {
             decryptedBlock[j] ^= block[j];
         }
-
 
         memcpy(output + block_start, decryptedBlock, block_length);
 
@@ -661,6 +665,5 @@ void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
     }
 
     output[num_blocks * 16] = '\0';
-
 
 }
