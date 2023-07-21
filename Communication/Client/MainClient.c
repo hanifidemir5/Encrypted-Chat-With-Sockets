@@ -37,41 +37,41 @@ unsigned __stdcall ReceiveThread(void* arg) {
             perror("receive failed");
             exit(EXIT_FAILURE);
         }
-
+        // Take buffer's first char which represents username length as char
         usernameLengthChar = buffer[0];
-
+        // Turn it int value
         usernameLengthInt = (int)(usernameLengthChar);
-
+        // Make buffer NULL terminated in order to copy correctly
+        buffer[strlen(buffer)] = '\0';
+        // Use strcpy function which copies the string untill a null char
         strcpy(temp, buffer);
-
-        temp[strlen(buffer)] = '\0';
-
-        strcpy(accualMessage, buffer + (1 + usernameLengthInt), (strlen(buffer) - (17 + usernameLengthInt)));
-
-        accualMessage[strlen(accualMessage)] = '\0';
-
-        strcpy(username, buffer + 1,usernameLengthInt);
-
+        // Use memcpy function which you can indicate where to start and stop copying process
+        memcpy(accualMessage, buffer + (1 + usernameLengthInt), (strlen(buffer) - (17 + usernameLengthInt)));
+        // Make accualMessage NULL terminated because memcpy function doesn't do it
+        memcpy(username, buffer + 1,usernameLengthInt);
+        // Again NULL terminate
         username[usernameLengthInt] = '\0';
-        
+        // Take counter value from end of the buffer
         for (i = 0; i < 16; i++)
         {
             counter[15 - i] = temp[(strlen(temp) - i - 1)];
         }
-
+        // Make it NULL terminated
         counter[16] = '\0';
-
-        accualMessage[strlen(accualMessage) - 16] = '\0';
-
+        // Make output array to use it correctly
         unsigned char decryptedText[BUFFER_SIZE] = {'\0'};
-
+        // Check if decryptedText is NULL
+        printf("\nmessage : %s message length: %d counter %s counter length %d key %s keylength %d\n",accualMessage,strlen(accualMessage),counter, strlen(counter),key, strlen(key));
         if (decryptedText[0] == '\0')
         {
+            // Decrypt the message 
             decryptMessage(accualMessage, decryptedText, key, counter);
+            // Print decrypted message
             printf("%s:%s\n", username, decryptedText);
         }
         else {
-            printf("Array is not empty");
+            // If output array is not null give error
+            printf("Error, output array is not empty");
         }
 
         // Clear the buffer
@@ -195,9 +195,7 @@ int main() {
 
                 if (messageText != NULL)
                 {
-                    /*strcpy(accualMessage, messageText);*/
-                    // NULL terminate messageText in order to do encryption
-                    messageText[strlen(messageText)] = '\0';
+                    strcpy(accualMessage, messageText);
                     //Encrypt the message without recipient's nick
                     encryptMessage(accualMessage, cipherText, key, counter);
                 }
