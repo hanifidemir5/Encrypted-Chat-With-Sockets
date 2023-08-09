@@ -13,13 +13,12 @@
 
 char recipientNick[BUFFER_SIZE];
 unsigned char key[BUFFER_SIZE];
-char accualMessage[BUFFER_SIZE];
+char actualMessage[BUFFER_SIZE];
 int deneme = 0;
-typedef int boolean;
 
 // Function to handle receiving data from the server
 unsigned __stdcall ReceiveThread(void* arg) {
-    int i,j;
+    int i, j;
     SOCKET clientSocket = *(SOCKET*)arg;
     unsigned char buffer[BUFFER_SIZE] = { '\0' }; // For received input
     unsigned char* decryptedText = malloc(BUFFER_SIZE); // For output
@@ -42,14 +41,12 @@ unsigned __stdcall ReceiveThread(void* arg) {
         senderUserNameLengthChar = buffer[0];
         // Typecast it to int 
         senderUserNameLengthInt = (int)(senderUserNameLengthChar);
-        // Null terminate recipient's username
-        
         // Use strcpy function which copies the string untill a null char
         strcpy(temp, buffer);
         // Use memcpy function which you can indicate where to start and stop the copying process
         memcpy(actualMessage, buffer + (1 + senderUserNameLengthInt), (strlen(buffer) - (17 + senderUserNameLengthInt)));
         // Start after '@' char to take senderUsername 
-        memcpy(senderUserName, buffer + 1,senderUserNameLengthInt);
+        memcpy(senderUserName, buffer + 1, senderUserNameLengthInt);
         // NULL terminate senderUsername
         senderUserName[senderUserNameLengthInt] = '\0';
         // Take counter value from end of the buffer
@@ -85,9 +82,6 @@ int main() {
     unsigned char counter[AES_BLOCK_SIZE + 1];
     unsigned char buffer[BUFFER_SIZE] = { 0 };
 
-
-
-
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         perror("WSAStartup failed");
@@ -114,6 +108,21 @@ int main() {
         perror("connection failed");
         exit(EXIT_FAILURE);
     }
+
+    printf("Enter your key in order too access to server : ");
+    fgets(key, BUFFER_SIZE, stdin);
+    key[strcspn(key, "\n")] = '\0';
+    // Send key to server
+    if (send(clientSocket, key, strlen(key), 0) == SOCKET_ERROR) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Store the received key for further processing
+    strncpy(key, buffer, BUFFER_SIZE);
+    // Clear buffer to store other values
+    memset(buffer, 0, BUFFER_SIZE);
+
     // Take username from client to sign it in server
     char username[BUFFER_SIZE] = { 0 };
     printf("Enter your username: ");
@@ -127,17 +136,6 @@ int main() {
         perror("send failed");
         exit(EXIT_FAILURE);
     }
-
-    // Receive key
-    if (recv(clientSocket, buffer, BUFFER_SIZE - 1, 0) == SOCKET_ERROR) {
-        perror("receive failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Store the received key for further processing
-    strncpy(key, buffer, BUFFER_SIZE);
-    // Clear buffer to store other values
-    memset(buffer, 0, BUFFER_SIZE);
 
     // Receive user list
     if (recv(clientSocket, buffer, BUFFER_SIZE - 1, 0) == SOCKET_ERROR) {
@@ -159,9 +157,8 @@ int main() {
 
     printf("Welcome to the chat room!! Type 'q' or 'Q' to get lonely :( \n ");
 
-    boolean running = 1;
     // Communication loop
-    while (running) {
+    while (1) {
         fgets(message, BUFFER_SIZE, stdin);
 
         // Remove the newline character from the message
@@ -173,25 +170,45 @@ int main() {
         }
 
         // if its a private message get the user
-        if (message[0] == '@') 
+        if (message[0] == '@')
         {
+            char messageHolderArray[BUFFER_SIZE] = { 0 };
             // Get receipients nick with '@'
-            char* recipient = strtok(message, " ");  
+            char* recipient = strtok(message, " ");
             // Get the rest of the message
             char* messageText = strtok(NULL, "");
-            
-            if (recipient != NULL) 
+            if (recipient != NULL)
             {
                 // Copy target user's nick to recipient
                 strcpy(recipientNick, recipient);
                 // Encrypt message before sending
                 if (messageText != NULL)
                 {
-                    strcpy(accualMessage, messageText);
-                    //Encrypt the message without recipient's nick
-                    encryptMessage(accualMessage, cipherText, key, counter);
+                    // Copy actual message from original text into actualMessage array
+                    strcpy(messageHolderArray, messageText);
+                    // For checking if there is any null chat in the encrypted string
+                    strcpy(actualMessage, messageText);
+                    int check = 1;
+                    // Checker loop
+                    while (1) 
+                    {
+                        // Encrypt the message without recipient's nick
+                        encryptMessage(actualMessage, cipherText, key, counter);
+                        // Check if text is corrupted or not
+                        if (strlen(cipherText) % 16 != 0)
+                        {
+                            // if corrupted encrypt again
+                            strcpy(actualMessage, messageHolderArray);
+                            continue;
+                        }
+                        else 
+                        {
+                            // if encryption successfull break the loop
+                            break;
+                        }
+                    }
                 }
-                else 
+                else
                 {
                     printf("Message is empty!!\n");
                     continue;
@@ -201,7 +218,7 @@ int main() {
                 // Add space caracter to indicate target user
                 strcat(message, " ");
                 // Add cipherText to the end of message array
-                if (cipherText != NULL) 
+                if (cipherText != NULL)
                 {
                     // Concatenate cipher text at the end of recipient's nick
                     strcat(message, cipherText);
@@ -210,22 +227,40 @@ int main() {
             // At final step add counter to the message 
             strcat(message, counter);
         }
-        else 
+        else
         {
-            // Encrypt the message
-            encryptMessage(message, cipherText, key, counter);
+            char messageHolderArray[BUFFER_SIZE] = { 0 };
+            int check = 1;
+            // Checker loop
+            while (1)
+            {
+                // Encrypt the message 
+                encryptMessage(message, cipherText, key, counter);
+                // Check if text is corrupted or not
+                if (strlen(cipherText) % 16 != 0)
+                {
+                    printf("\nbozulmuş mesaj\n");
+                    // if corrupted encrypt again
+                    strcpy(message, messageHolderArray);
+                    continue;
+                }
+                else
+                {
+                    // if encryption successfull break the loop
+                    break;
+                }
+            }
             // Add cipherText to message
-            strcpy(message, cipherText); 
+            strcpy(message, cipherText);
             // Add Counter 
             strcat(message, counter);
         }
 
         // Send the message to the server
-        if (send(clientSocket, message, strlen(message), 0) == SOCKET_ERROR) 
+        if (send(clientSocket, message, strlen(message), 0) == SOCKET_ERROR)
         {
             perror("send failed");
             exit(EXIT_FAILURE);
-            running = 0;
         }
 
         // Clear the buffer
