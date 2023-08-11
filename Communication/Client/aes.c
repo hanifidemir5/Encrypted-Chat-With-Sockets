@@ -2,13 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <stdlib.h>
 #include "aes.h"
-
-#define BUFFER_SIZE 1024
-#define AES_BLOCK_SIZE 16
-#define EXPANDED_KEY_SIZE 176
-#define NONCE_SIZE 9
 
 void randomArray(unsigned char* arr, int n)
 {
@@ -535,33 +529,36 @@ void encryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
     unsigned char cipherCounterBlock[AES_BLOCK_SIZE];
     unsigned char encryptedBlock[AES_BLOCK_SIZE];
     unsigned char block[AES_BLOCK_SIZE];
-    unsigned char nonce[NONCE_SIZE];
+    unsigned char nonce[AES_BLOCK_SIZE + 1];
     unsigned char tmp[AES_BLOCK_SIZE + 1 ];
     // Make nonce NULL terminated in order to use it with memcpy which does not put null at the end of a string
-    nonce[NONCE_SIZE - 1] = '\0';
+    nonce[AES_BLOCK_SIZE] = '\0';
     // Randomize nonce
-    randomArray(nonce, 8);
-    // Null terminate nonce
-    nonce[NONCE_SIZE - 1] = '\0';
+    randomArray(nonce, AES_BLOCK_SIZE);
     // Memcopy it to counter
-    memcpy(counter, nonce, 8);
-    // Null terminate counter after nonce char's
-    counter[9] = '\0';
-    // Fill counter with 0's
-    for (int i = 8; i < 16; i++)
+    memcpy(counter, nonce, AES_BLOCK_SIZE);
+    for (i = 0;i< AES_BLOCK_SIZE;i++)
     {
-        counter[i] = '0';
+        if (counter[i] == '\0' || counter[i] == '\t' || counter[i] == '\n'|| counter[i] == '\r' || counter[i] == '\b' || counter[i] == '\f' || counter[i] == '\v' || counter[i] == '\a')
+        {
+            counter[i] = 0x01;
+        }
     }
-    // Null terminate counter
-    counter[16] = '\0';
+
+    //Null terminate counter
+    counter[AES_BLOCK_SIZE] = '\0';
+
     // Copy counter to tmp with strcpy
     strcpy(tmp, counter);
+
     /*for (int j = 0; j < AES_BLOCK_SIZE; j++)
     {
         tmp[j] = counter[j];
     }*/
+
     // Expand Key
-    expandKey(expandedKey, key, expandedKeySize);
+    expandKey(expandedKey, key);
+
 
     for (size_t i = 0; i < num_blocks; i++)
     {
@@ -611,7 +608,7 @@ void encryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
 
     output[num_blocks * 16] = '\0';
 
-    memcpy(counter, tmp, 16);
+    strcpy(counter, tmp);
 
 }
 
@@ -626,7 +623,7 @@ void decryptMessage(unsigned char* input, unsigned char* output, unsigned char* 
     unsigned char decryptedBlock[AES_BLOCK_SIZE] = {'\0'};
     unsigned char expandedKey[EXPANDED_KEY_SIZE] = { '\0' };
 
-    expandKey(expandedKey, key, expandedKeySize);
+    expandKey(expandedKey, key);
 
     for (i = 0; i < num_blocks; i++)
     {
