@@ -10,6 +10,7 @@
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
+#define AES_BLOCK_SIZE 16
 
 char recipientNick[BUFFER_SIZE];
 unsigned char key[BUFFER_SIZE];
@@ -77,10 +78,10 @@ int main() {
     struct sockaddr_in serv_addr;
     HANDLE receiveThread;
     unsigned threadID;
-    char message[BUFFER_SIZE] = { 0 };
-    unsigned char cipherText[BUFFER_SIZE];
-    unsigned char counter[AES_BLOCK_SIZE + 1];
-    unsigned char buffer[BUFFER_SIZE] = { 0 };
+    char message[BUFFER_SIZE] = { '\0' };
+    unsigned char cipherText[BUFFER_SIZE] = { '\0' };
+    unsigned char counter[AES_BLOCK_SIZE + 1] = { '\0' };
+    unsigned char buffer[BUFFER_SIZE] = { '\0' };
 
     // Initialize Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -98,10 +99,8 @@ int main() {
     serv_addr.sin_port = htons(PORT);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        perror("inet_pton failed");
-        exit(EXIT_FAILURE);
-    }
+    serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
 
     // Connect to the server
     if (connect(clientSocket, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == SOCKET_ERROR) {
@@ -190,7 +189,7 @@ int main() {
                     strcpy(actualMessage, messageText);
                     int check = 1;
                     // Checker loop
-                    while (1) 
+                    while (1)
                     {
                         // Encrypt the message without recipient's nick
                         encryptMessage(actualMessage, cipherText, key, counter);
@@ -201,7 +200,7 @@ int main() {
                             strcpy(actualMessage, messageHolderArray);
                             continue;
                         }
-                        else 
+                        else
                         {
                             // if encryption successfull break the loop
                             break;
