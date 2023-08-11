@@ -90,11 +90,11 @@ unsigned __stdcall ClientThread(void* arg) {
 
             // Find the recipient in the client list
             int recipientFound = 0;
-            for (int i = 0; i < clientCount; i++) 
+            for (int i = 0; i < clientCount; i++)
             {
-                if (strcmp(clients[i].username, recipient) == 0) 
+                if (strcmp(clients[i].username, recipient) == 0)
                 {
-                    printf("\n%d is i\n",i);
+                    printf("\n%d is i\n", i);
                     // Send the private message to the recipient
                     send(clients[i].socket, message, strlen(message), 0);
                     recipientFound = 1;
@@ -103,7 +103,7 @@ unsigned __stdcall ClientThread(void* arg) {
             }
 
             // If recipient not found, send an error message to the sender
-            if (!recipientFound) 
+            if (!recipientFound)
             {
                 snprintf(response, BUFFER_SIZE, "Error: User '%s' not found.", recipient);
                 send(clientSocket, response, strlen(response), 0);
@@ -116,9 +116,9 @@ unsigned __stdcall ClientThread(void* arg) {
             // Construct the broadcast message
             snprintf(message, sizeof(message), "%c%s%s", senderUsernameLength, username, buffer);
             // Send the broadcast message to all clients except the sender
-            for (int i = 0; i < clientCount; i++) 
+            for (int i = 0; i < clientCount; i++)
             {
-                if (clients[i].socket != clientSocket) 
+                if (clients[i].socket != clientSocket)
                 {
                     send(clients[i].socket, message, strlen(message), 0);
                 }
@@ -221,35 +221,42 @@ int main() {
 
     printf("Server listening on port %d\n", PORT);
 
-    while (1) 
+    while (1)
     {
         // Accept a new connection
-        if ((newSocket = accept(serverSocket, (struct sockaddr*)&address, &addrlen)) == INVALID_SOCKET) 
+        if ((newSocket = accept(serverSocket, (struct sockaddr*)&address, &addrlen)) == INVALID_SOCKET)
         {
             perror("accept failed");
             break;
         }
 
         // Receive key from user
-        unsigned char receivedKey[BUFFER_SIZE] = { 0 };
-        if (recv(newSocket, buffer, BUFFER_SIZE, 0) == SOCKET_ERROR) 
+        unsigned char* receivedKey = malloc(16 * sizeof(char));
+        if (recv(newSocket, buffer, BUFFER_SIZE, 0) == SOCKET_ERROR)
         {
             perror("receive failed");
             break;
         }
-
+        // Put original key to a temporary array in case of corruptions
+        unsigned char keyHolder[17];
+        memcpy(keyHolder, key, 16);
+        // Adjust keyHolder for strcpy
+        keyHolder[16] = '\0';
         // Close socket if key is not the same
-        memcpy(receivedKey,buffer,16);
-        if (strcmp(receivedKey, key) != 0)
+        strcpy(receivedKey, buffer);
+        if (strcmp(receivedKey, keyHolder) != 0)
         {
             closesocket(newSocket);
             printf("\nIntruder has been foud!!!\n");
+            printf("\nKey is %s and received Kee is %s\n", key, receivedKey);
+            memset(buffer, 0, BUFFER_SIZE);
+            free(receivedKey);
             continue;
         }
 
         // Receive the client's username
         char username[BUFFER_SIZE] = { 0 };
-        if (recv(newSocket, username, BUFFER_SIZE, 0) == SOCKET_ERROR) 
+        if (recv(newSocket, username, BUFFER_SIZE, 0) == SOCKET_ERROR)
         {
             perror("receive failed");
             break;
@@ -262,7 +269,7 @@ int main() {
 
         // Create a thread for the new client
         clientThreads[clientCount - 1] = (HANDLE)_beginthreadex(NULL, 0, &ClientThread, (void*)&newSocket, 0, &threadID);
-        if (clientThreads[clientCount - 1] == NULL) 
+        if (clientThreads[clientCount - 1] == NULL)
         {
             perror("failed to create client thread");
             break;
