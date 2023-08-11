@@ -9,8 +9,9 @@
 #define BUFFER_SIZE 1024
 #define AES_BLOCK_SIZE 16
 #define EXPANDED_KEY_SIZE 176
-#define NONCE_SIZE 8
 
+void decryptMessage(unsigned char* input, unsigned char* output,unsigned char* key,unsigned char* counter);
+void encryptMessage(unsigned char* input, unsigned char* output,unsigned char* key,unsigned char* counter);
 void randomArray(unsigned char* arr, int n);
 int input(char str[], int n);
 unsigned char galois_multiplication(unsigned char a, unsigned char b);
