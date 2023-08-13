@@ -52,7 +52,8 @@ unsigned __stdcall ClientThread(void* arg) {
 
     while (1) {
         // Receive client message
-        if (recv(clientSocket, buffer, BUFFER_SIZE, 0) == SOCKET_ERROR) {
+        if (recv(clientSocket, buffer, BUFFER_SIZE, 0) == SOCKET_ERROR)
+        {
             perror("receive failed");
             break;
         }
@@ -83,7 +84,6 @@ unsigned __stdcall ClientThread(void* arg) {
             privateMessage[strlen(privateMessage)] = '\0';
             // typecast privateUsernameLength to chat in order to send it in one byte 
             senderUsernameLength = (char)strlen(privateUsername);
-
             // Construct the private message
             snprintf(message, sizeof(message), "%c%s%s", senderUsernameLength, privateUsername, privateMessage);
 
@@ -94,7 +94,6 @@ unsigned __stdcall ClientThread(void* arg) {
             {
                 if (strcmp(clients[i].username, recipient) == 0)
                 {
-                    printf("\n%d is i\n", i);
                     // Send the private message to the recipient
                     send(clients[i].socket, message, strlen(message), 0);
                     recipientFound = 1;
@@ -103,11 +102,12 @@ unsigned __stdcall ClientThread(void* arg) {
             }
 
             // If recipient not found, send an error message to the sender
-            if (!recipientFound)
+            if (recipientFound == 0)
             {
-                snprintf(response, BUFFER_SIZE, "Error: User '%s' not found.", recipient);
+                snprintf(response, BUFFER_SIZE, "CommunicationUsingSocketProgrammingWithAES Error: User '%s' not found.", recipient);
                 send(clientSocket, response, strlen(response), 0);
             }
+            recipient = NULL;
         }
         else
         {
@@ -248,7 +248,7 @@ int main() {
         {
             closesocket(newSocket);
             printf("\nIntruder has been foud!!!\n");
-            printf("\nKey is %s and received Kee is %s\n", key, receivedKey);
+            printf("\nKey is %s and received Key is %s\n", key, receivedKey);
             memset(buffer, 0, BUFFER_SIZE);
             free(receivedKey);
             continue;
