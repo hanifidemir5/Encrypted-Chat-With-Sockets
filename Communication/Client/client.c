@@ -38,6 +38,15 @@ unsigned __stdcall ReceiveThread(void* arg) {
             perror("receive failed");
             exit(EXIT_FAILURE);
         }
+        unsigned char firstWord[50];
+        sscanf(buffer, "%49s", firstWord);
+        if (strcmp(firstWord, "CommunicationUsingSocketProgrammingWithAES") == 0)
+        {
+            char* indicator = strtok(buffer, " ");  // Skip the '@' symbol
+            char* errorMessage = strtok(NULL, "");
+            printf("\n%s\n", errorMessage);
+            continue;
+        }
         // Take buffer's first char which represents username length as char
         senderUserNameLengthChar = buffer[0];
         // Typecast it to int 
@@ -162,7 +171,7 @@ int main() {
 
         // Remove the newline character from the message
         message[strcspn(message, "\n")] = '\0';
-        // 
+        // Quit statement
         if ((message[0] == 'q' || message[0] == 'Q') && strlen(message) == 1)
         {
             break;
@@ -230,6 +239,7 @@ int main() {
         {
             char messageHolderArray[BUFFER_SIZE] = { 0 };
             int check = 1;
+            strcpy(messageHolderArray, message);
             // Checker loop
             while (1)
             {
@@ -238,7 +248,6 @@ int main() {
                 // Check if text is corrupted or not
                 if (strlen(cipherText) % 16 != 0)
                 {
-                    printf("\nbozulmuş mesaj\n");
                     // if corrupted encrypt again
                     strcpy(message, messageHolderArray);
                     continue;
