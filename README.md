@@ -1,7 +1,7 @@
 # Communication Using Socket Programming With AES Encryption
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/hanifidemir5/CommunicationUsingSocketProgrammingWithAES)
-![GitHub](https://img.shields.io/github/license/hanifidemir5/CommunicationUsingSocketProgrammingWithAES)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 This is a communication application implemented in C language using socket programming. The primary goal of this project is to provide secure communication between clients by utilizing AES encryption in counter mode (CTR) for message encryption and decryption. The server acts as a mediator, forwarding messages to the appropriate recipients while maintaining the confidentiality of the messages.
 
