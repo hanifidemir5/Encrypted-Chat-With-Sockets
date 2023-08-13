@@ -1,5 +1,3 @@
-I apologize for the confusion. Thank you for clarifying. Here's the revised version of the README without the unnecessary OpenSSL and `-lcrypto` references:
-
 # Communication Using Socket Programming With AES Encryption
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/hanifidemir5/CommunicationUsingSocketProgrammingWithAES)
