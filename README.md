@@ -19,8 +19,8 @@ To use this application, follow these steps:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/hanifidemir5/CommunicationUsingSocketProgrammingWithAES.git
-   cd CommunicationUsingSocketProgrammingWithAES
+   git clone https://github.com/hanifidemir5/Encrypted-Chat-With-Sockets.git
+   cd Encrypted-Chat-With-Sockets
    ```
 
 2. Navigate to the server directory:
